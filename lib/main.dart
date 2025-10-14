@@ -34,6 +34,7 @@ import 'package:musify/API/musify.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/localization/app_localizations.dart';
 import 'package:musify/services/audio_service.dart';
+import 'package:musify/services/auth_service.dart';
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/io_service.dart';
 import 'package:musify/services/logger_service.dart';
@@ -307,6 +308,9 @@ Future<void> initialisation() async {
 
     // Init router
     NavigationManager.instance;
+
+    // Init auth service
+    await AuthService.init();
 
     try {
       // Listen to incoming links while app is running
