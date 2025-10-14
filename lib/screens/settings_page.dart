@@ -25,6 +25,7 @@ import 'package:musify/API/musify.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/screens/search_page.dart';
+import 'package:musify/services/auth_service.dart';
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
@@ -41,9 +42,14 @@ import 'package:musify/widgets/confirmation_dialog.dart';
 import 'package:musify/widgets/custom_bar.dart';
 import 'package:musify/widgets/section_header.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -420,12 +426,25 @@ class SettingsPage extends StatelessWidget {
     return Column(
       children: [
         SectionHeader(title: context.l10n!.others),
-        CustomBar(
-          context.l10n!.licenses,
-          FluentIcons.document_24_filled,
-          borderRadius: commonCustomBarRadiusFirst,
-          onTap: () => NavigationManager.router.go('/settings/license'),
-        ),
+        if (AuthService.isAuthenticated) ...[
+          CustomBar(
+            'Đăng xuất',
+            FluentIcons.sign_out_24_filled,
+            borderRadius: commonCustomBarRadiusFirst,
+            onTap: () => _handleSignOut(context),
+          ),
+          CustomBar(
+            context.l10n!.licenses,
+            FluentIcons.document_24_filled,
+            onTap: () => NavigationManager.router.go('/settings/license'),
+          ),
+        ] else
+          CustomBar(
+            context.l10n!.licenses,
+            FluentIcons.document_24_filled,
+            borderRadius: commonCustomBarRadiusFirst,
+            onTap: () => NavigationManager.router.go('/settings/license'),
+          ),
         CustomBar(
           '${context.l10n!.copyLogs} (${logger.getLogCount()})',
           FluentIcons.error_circle_24_filled,
@@ -439,6 +458,26 @@ class SettingsPage extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _handleSignOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        confirmationMessage: 'Bạn có chắc chắn muốn đăng xuất?',
+        submitMessage: 'Đăng xuất',
+        onCancel: () => Navigator.of(context).pop(false),
+        onSubmit: () => Navigator.of(context).pop(true),
+      ),
+    );
+
+    if (confirmed == true) {
+      await AuthService.signOut();
+      if (context.mounted) {
+        setState(() {});
+        showToast(context, 'Đã đăng xuất');
+      }
+    }
   }
 
   void _showAccentColorPicker(BuildContext context) {

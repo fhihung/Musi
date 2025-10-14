@@ -19,8 +19,10 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:pocketbase/pocketbase.dart';
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:musify/services/pocketbase_http_client.dart';
 import 'package:musify/services/pocketbase_logger.dart';
 
 class AuthResult {
@@ -30,47 +32,96 @@ class AuthResult {
   final String? message;
 }
 
+/// Authentication service using PocketBase REST API
+/// Reference: https://pocketbase.io/docs/api-records/
 class AuthService {
-  static final PocketBase _pb = PocketBase('http://10.0.2.2:8090');
-  static const String _authStoreKey = 'pb_auth';
+  static final PocketBaseHttpClient _client = PocketBaseHttpClient(
+    'http://10.0.2.2:8090/api',
+  );
 
-  static PocketBase get pb => _pb;
+  static const String _userCollection = 'users';
+  static Map<String, dynamic>? _currentUser;
 
-  static bool get isAuthenticated => _pb.authStore.isValid;
+  /// Get current authenticated user
+  static Map<String, dynamic>? get currentUser => _currentUser;
 
-  static String? get userId => _pb.authStore.record?.id;
+  /// Check if user is authenticated
+  static bool get isAuthenticated => _client.isAuthenticated;
 
-  static String? get userEmail => _pb.authStore.record?.getStringValue('email');
+  /// Get current user ID
+  static String? get userId => _currentUser?['id'] as String?;
 
-  static String? get userName => _pb.authStore.record?.getStringValue('name');
+  /// Get current user email
+  static String? get userEmail => _currentUser?['email'] as String?;
+
+  /// Get current user name
+  static String? get userName => _currentUser?['name'] as String?;
+
+  /// Get current auth token
+  static String? get authToken => _client.authToken;
 
   /// Initialize auth service and restore previous session
   static Future<void> init() async {
     try {
+      await _client.init();
+
+      // Try to restore user data from storage
       final prefs = await SharedPreferences.getInstance();
-      final authData = prefs.getString(_authStoreKey);
+      final userJson = prefs.getString('pb_auth_user');
 
-      if (authData != null && authData.isNotEmpty) {
-        _pb.authStore.save(authData, null);
+      if (userJson != null && _client.isAuthenticated) {
+        try {
+          _currentUser = jsonDecode(userJson) as Map<String, dynamic>;
 
-        // Verify the token is still valid
-        if (_pb.authStore.isValid) {
-          try {
-            await _pb.collection('users').authRefresh();
-          } catch (e) {
-            // Token is invalid, clear it
-            await clearAuth();
-          }
+          // Verify the token is still valid by refreshing
+          await authRefresh();
+        } catch (e) {
+          // Token is invalid, clear it
+          await clearAuth();
         }
       }
-
-      // Listen to auth changes and persist them
-      _pb.authStore.onChange.listen((e) async {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_authStoreKey, e.token);
-      });
     } catch (e) {
       // Ignore init errors
+    }
+  }
+
+  /// Refresh auth token
+  static Future<bool> authRefresh() async {
+    try {
+      PocketBaseLogger.logOperation('AUTH REFRESH', _userCollection);
+      final startTime = DateTime.now();
+
+      final response = await _client.post(
+        '/collections/$_userCollection/auth-refresh',
+        body: {},
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final token = data['token'] as String;
+        final record = data['record'] as Map<String, dynamic>;
+
+        await _client.saveAuthToken(token);
+        _currentUser = record;
+
+        // Save user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pb_auth_user', jsonEncode(record));
+
+        PocketBaseLogger.logResult(
+          'AUTH REFRESH',
+          true,
+          duration: DateTime.now().difference(startTime),
+        );
+        return true;
+      } else {
+        PocketBaseLogger.logResult('AUTH REFRESH', false, error: response.body);
+        return false;
+      }
+    } catch (e) {
+      PocketBaseLogger.logResult('AUTH REFRESH', false, error: e);
+      return false;
     }
   }
 
@@ -91,20 +142,32 @@ class AuthService {
         'emailVisibility': true,
       };
 
-      PocketBaseLogger.logOperation('CREATE', 'users', data: body);
+      PocketBaseLogger.logOperation('CREATE', _userCollection, data: body);
 
-      await _pb.collection('users').create(body: body);
-
-      PocketBaseLogger.logResult(
-        'CREATE users',
-        true,
-        duration: DateTime.now().difference(startTime),
+      final response = await _client.post(
+        '/collections/$_userCollection/records',
+        body: body,
       );
 
-      return AuthResult(success: true, message: 'Đăng ký thành công!');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        PocketBaseLogger.logResult(
+          'CREATE $_userCollection',
+          true,
+          duration: DateTime.now().difference(startTime),
+        );
+        return AuthResult(success: true, message: 'Đăng ký thành công!');
+      } else {
+        final error = _parseErrorMessage(response.body);
+        PocketBaseLogger.logResult(
+          'CREATE $_userCollection',
+          false,
+          error: error,
+        );
+        return AuthResult(success: false, error: error);
+      }
     } catch (e) {
-      PocketBaseLogger.logResult('CREATE users', false, error: e);
-      return AuthResult(success: false, error: _getErrorMessage(e));
+      PocketBaseLogger.logResult('CREATE $_userCollection', false, error: e);
+      return AuthResult(success: false, error: 'Lỗi kết nối: $e');
     }
   }
 
@@ -116,37 +179,61 @@ class AuthService {
     final startTime = DateTime.now();
 
     try {
-      PocketBaseLogger.logOperation('AUTH', 'users', data: {'email': email});
-
-      await _pb.collection('users').authWithPassword(email, password);
-
-      PocketBaseLogger.logResult(
-        'AUTH users',
-        true,
-        duration: DateTime.now().difference(startTime),
+      PocketBaseLogger.logOperation(
+        'AUTH',
+        _userCollection,
+        data: {'identity': email},
       );
 
-      return AuthResult(success: true, message: 'Đăng nhập thành công!');
+      final response = await _client.post(
+        '/collections/$_userCollection/auth-with-password',
+        body: {'identity': email, 'password': password},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final token = data['token'] as String;
+        final record = data['record'] as Map<String, dynamic>;
+
+        // Save auth token
+        await _client.saveAuthToken(token);
+        _currentUser = record;
+
+        // Save user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pb_auth_user', jsonEncode(record));
+
+        PocketBaseLogger.logResult(
+          'AUTH $_userCollection',
+          true,
+          duration: DateTime.now().difference(startTime),
+        );
+
+        return AuthResult(success: true, message: 'Đăng nhập thành công!');
+      } else {
+        final error = _parseErrorMessage(response.body);
+        PocketBaseLogger.logResult(
+          'AUTH $_userCollection',
+          false,
+          error: error,
+        );
+        return AuthResult(success: false, error: error);
+      }
     } catch (e) {
-      PocketBaseLogger.logResult('AUTH users', false, error: e);
-      return AuthResult(success: false, error: _getErrorMessage(e));
+      PocketBaseLogger.logResult('AUTH $_userCollection', false, error: e);
+      return AuthResult(success: false, error: 'Lỗi kết nối: $e');
     }
   }
 
   /// Sign out current user
   static Future<void> signOut() async {
-    _pb.authStore.clear();
     await clearAuth();
   }
 
   /// Clear stored auth data
   static Future<void> clearAuth() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_authStoreKey);
-    } catch (e) {
-      // Ignore errors
-    }
+    _currentUser = null;
+    await _client.clearAuthToken();
   }
 
   /// Update user profile
@@ -163,14 +250,32 @@ class AuthService {
       if (name != null) body['name'] = name;
       if (avatar != null) body['avatar'] = avatar;
 
-      await _pb.collection('users').update(userId!, body: body);
-
-      return AuthResult(
-        success: true,
-        message: 'Cập nhật thông tin thành công!',
+      final response = await _client.patch(
+        '/collections/$_userCollection/records/$userId',
+        body: body,
+        requiresAuth: true,
       );
+
+      if (response.statusCode == 200) {
+        final record = jsonDecode(response.body) as Map<String, dynamic>;
+        _currentUser = record;
+
+        // Update saved user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pb_auth_user', jsonEncode(record));
+
+        return AuthResult(
+          success: true,
+          message: 'Cập nhật thông tin thành công!',
+        );
+      } else {
+        return AuthResult(
+          success: false,
+          error: _parseErrorMessage(response.body),
+        );
+      }
     } catch (e) {
-      return AuthResult(success: false, error: _getErrorMessage(e));
+      return AuthResult(success: false, error: 'Lỗi kết nối: $e');
     }
   }
 
@@ -184,68 +289,49 @@ class AuthService {
         return AuthResult(success: false, error: 'Bạn chưa đăng nhập');
       }
 
-      await _pb
-          .collection('users')
-          .update(
-            userId!,
-            body: {
-              'oldPassword': oldPassword,
-              'password': newPassword,
-              'passwordConfirm': newPassword,
-            },
-          );
-
-      return AuthResult(success: true, message: 'Đổi mật khẩu thành công!');
-    } catch (e) {
-      return AuthResult(success: false, error: _getErrorMessage(e));
-    }
-  }
-
-  /// Request password reset
-  static Future<AuthResult> requestPasswordReset(String email) async {
-    try {
-      await _pb.collection('users').requestPasswordReset(email);
-
-      return AuthResult(
-        success: true,
-        message: 'Email khôi phục mật khẩu đã được gửi!',
+      final response = await _client.patch(
+        '/collections/$_userCollection/records/$userId',
+        body: {
+          'oldPassword': oldPassword,
+          'password': newPassword,
+          'passwordConfirm': newPassword,
+        },
+        requiresAuth: true,
       );
+
+      if (response.statusCode == 200) {
+        return AuthResult(success: true, message: 'Đổi mật khẩu thành công!');
+      } else {
+        return AuthResult(
+          success: false,
+          error: _parseErrorMessage(response.body),
+        );
+      }
     } catch (e) {
-      return AuthResult(success: false, error: _getErrorMessage(e));
+      return AuthResult(success: false, error: 'Lỗi kết nối: $e');
     }
   }
 
-  /// Get user-friendly error message
-  static String _getErrorMessage(dynamic error) {
-    if (error is ClientException) {
-      final statusCode = error.statusCode;
-      final response = error.response;
+  /// Parse error message from PocketBase response
+  static String _parseErrorMessage(String responseBody) {
+    try {
+      final json = jsonDecode(responseBody) as Map<String, dynamic>;
+      final message = json['message'] as String?;
 
-      if (statusCode == 400) {
-        if (response.toString().contains('email')) {
-          return 'Email không hợp lệ hoặc đã được sử dụng';
+      if (message != null) {
+        // Translate common error messages
+        if (message.contains('Failed to authenticate')) {
+          return 'Email hoặc mật khẩu không đúng';
         }
-        if (response.toString().contains('password')) {
-          return 'Mật khẩu không hợp lệ';
+        if (message.contains('already exists')) {
+          return 'Email đã được sử dụng';
         }
-        return 'Thông tin không hợp lệ';
+        return message;
       }
 
-      if (statusCode == 401) {
-        return 'Email hoặc mật khẩu không đúng';
-      }
-
-      if (statusCode == 403) {
-        return 'Tài khoản chưa được xác thực';
-      }
-
-      if (statusCode == 404) {
-        return 'Không tìm thấy tài khoản';
-      }
-
-      return 'Lỗi kết nối: ${error.response}';
+      return 'Có lỗi xảy ra';
+    } catch (e) {
+      return responseBody;
     }
-
-    return error.toString();
   }
 }

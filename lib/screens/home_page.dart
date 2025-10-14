@@ -47,6 +47,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final ValueNotifier<int> _aiRefreshTrigger = ValueNotifier(0);
+
+  @override
+  void dispose() {
+    _aiRefreshTrigger.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
@@ -223,92 +231,116 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAISuggestedSongsSection() {
-    return FutureBuilder<bool>(
-      future: _checkIfGenresSelected(),
-      builder: (context, genresSnapshot) {
-        // Show AI suggestions only if genres are selected
-        final hasGenres = genresSnapshot.hasData && genresSnapshot.data!;
+    return ValueListenableBuilder<int>(
+      valueListenable: _aiRefreshTrigger,
+      builder: (context, refreshCount, child) {
+        return FutureBuilder<bool>(
+          future: _checkIfGenresSelected(),
+          builder: (context, genresSnapshot) {
+            // Show AI suggestions only if genres are selected
+            final hasGenres = genresSnapshot.hasData && genresSnapshot.data!;
 
-        return FutureBuilder<List<dynamic>>(
-          future: _getAISuggestedSongs(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Column(
-                children: [
-                  SectionHeader(
-                    title: hasGenres
-                        ? 'Suggested by AI ✨'
-                        : context.l10n!.recommendedForYou,
-                    actionButton: const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                  _buildLoadingWidget(),
-                ],
-              );
-            }
-
-            if (snapshot.hasError) {
-              logger.log(
-                'Error in _buildAISuggestedSongsSection',
-                snapshot.error,
-                snapshot.stackTrace,
-              );
-              return const SizedBox.shrink();
-            }
-
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const SizedBox.shrink();
-            }
-
-            final data = snapshot.data!;
-            final title = hasGenres
-                ? 'Suggested by AI ✨'
-                : context.l10n!.recommendedForYou;
-
-            return Column(
-              children: [
-                SectionHeader(
-                  title: title,
-                  actionButton: IconButton(
-                    onPressed: () async {
-                      await Future.microtask(
-                        () => setActivePlaylist({
-                          'title': hasGenres ? 'AI Suggestions' : 'Recommended',
-                          'list': data,
-                        }),
-                      );
-                    },
-                    icon: Icon(
-                      FluentIcons.play_circle_24_filled,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 30,
-                    ),
-                  ),
-                ),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: data.length,
-                  padding: commonListViewBottmomPadding,
-                  itemBuilder: (context, index) {
-                    final borderRadius = getItemBorderRadius(
-                      index,
-                      data.length,
-                    );
-                    return RepaintBoundary(
-                      key: ValueKey('song_${data[index]['ytid']}'),
-                      child: SongBar(
-                        data[index],
-                        true,
-                        borderRadius: borderRadius,
+            return FutureBuilder<List<dynamic>>(
+              future: _getAISuggestedSongs(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    children: [
+                      SectionHeader(
+                        title: hasGenres
+                            ? 'Suggested by AI ✨'
+                            : context.l10n!.recommendedForYou,
+                        actionButton: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       ),
-                    );
-                  },
-                ),
-              ],
+                      _buildLoadingWidget(),
+                    ],
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  logger.log(
+                    'Error in _buildAISuggestedSongsSection',
+                    snapshot.error,
+                    snapshot.stackTrace,
+                  );
+                  return const SizedBox.shrink();
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                final data = snapshot.data!;
+                final title = hasGenres
+                    ? 'Suggested by AI ✨'
+                    : context.l10n!.recommendedForYou;
+
+                return Column(
+                  children: [
+                    SectionHeader(
+                      title: title,
+                      actionButton: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (hasGenres)
+                            IconButton(
+                              onPressed: () {
+                                _aiRefreshTrigger.value++;
+                              },
+                              icon: Icon(
+                                FluentIcons.arrow_clockwise_24_regular,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 24,
+                              ),
+                              tooltip: 'Làm mới gợi ý',
+                            ),
+                          IconButton(
+                            onPressed: () async {
+                              await Future.microtask(
+                                () => setActivePlaylist({
+                                  'title': hasGenres
+                                      ? 'AI Suggestions'
+                                      : 'Recommended',
+                                  'list': data,
+                                }),
+                              );
+                            },
+                            icon: Icon(
+                              FluentIcons.play_circle_24_filled,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 30,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: data.length,
+                      padding: commonListViewBottmomPadding,
+                      itemBuilder: (context, index) {
+                        final borderRadius = getItemBorderRadius(
+                          index,
+                          data.length,
+                        );
+                        return RepaintBoundary(
+                          key: ValueKey('song_${data[index]['ytid']}'),
+                          child: SongBar(
+                            data[index],
+                            true,
+                            borderRadius: borderRadius,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
