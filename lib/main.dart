@@ -68,8 +68,8 @@ final List<Locale> appSupportedLocales = appLanguages.values.map((
   return Locale(languageCode);
 }).toList();
 
-class Musify extends StatefulWidget {
-  const Musify({super.key});
+class Musium extends StatefulWidget {
+  const Musium({super.key});
 
   static Future<void> updateAppState(
     BuildContext context, {
@@ -78,7 +78,7 @@ class Musify extends StatefulWidget {
     Color? newAccentColor,
     bool? useSystemColor,
   }) async {
-    context.findAncestorStateOfType<_MusifyState>()!.changeSettings(
+    context.findAncestorStateOfType<_MusiumState>()!.changeSettings(
       newThemeMode: newThemeMode,
       newLocale: newLocale,
       newAccentColor: newAccentColor,
@@ -87,10 +87,10 @@ class Musify extends StatefulWidget {
   }
 
   @override
-  _MusifyState createState() => _MusifyState();
+  _MusiumState createState() => _MusiumState();
 }
 
-class _MusifyState extends State<Musify> {
+class _MusiumState extends State<Musium> {
   void changeSettings({
     ThemeMode? newThemeMode,
     Locale? newLocale,
@@ -260,7 +260,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initialisation();
 
-  runApp(const Musify());
+  runApp(const Musium());
 }
 
 Future<void> initialisation() async {
@@ -278,7 +278,7 @@ Future<void> initialisation() async {
       builder: MusifyAudioHandler.new,
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.gokadzev.musify',
-        androidNotificationChannelName: 'Musify',
+        androidNotificationChannelName: 'Musium',
         androidNotificationIcon: 'drawable/ic_launcher_foreground',
         androidShowNotificationBadge: true,
         androidStopForegroundOnPause: false,

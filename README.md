@@ -1,7 +1,7 @@
 <div align="center">
 <img src="https://github.com/gokadzev/Musify/raw/master/repository_files/Musify-banner.png" width="100%">
 
-# Musify
+# Musium
 
 Unlock the full potential of music: Stream effortlessly with one app!
 

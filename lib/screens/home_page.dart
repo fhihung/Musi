@@ -61,7 +61,7 @@ class _HomePageState extends State<HomePage> {
     final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Musify.'),
+        title: const Text('Musium.'),
         actions: [
           Obx(() {
             final authController = Get.find<AuthController>();

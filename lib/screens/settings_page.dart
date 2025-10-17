@@ -307,7 +307,7 @@ class SettingsPage extends StatelessWidget {
                 // ignore: deprecated_member_use
                 color.value,
               );
-              Musify.updateAppState(
+              Musium.updateAppState(
                 context,
                 newAccentColor: color,
                 useSystemColor: false,
@@ -361,7 +361,7 @@ class SettingsPage extends StatelessWidget {
             mode.name,
             () {
               addOrUpdateData('settings', 'themeMode', mode.name);
-              Musify.updateAppState(context, newThemeMode: mode);
+              Musium.updateAppState(context, newThemeMode: mode);
               Navigator.pop(context);
             },
             themeMode == mode ? activatedColor : inactivatedColor,
@@ -407,7 +407,7 @@ class SettingsPage extends StatelessWidget {
             language,
             () {
               addOrUpdateData('settings', 'language', newLocaleFullCode);
-              Musify.updateAppState(context, newLocale: newLocale);
+              Musium.updateAppState(context, newLocale: newLocale);
               showToast(context, context.l10n!.languageMsg);
               Navigator.pop(context);
             },
@@ -462,7 +462,7 @@ class SettingsPage extends StatelessWidget {
   void _toggleSystemColor(BuildContext context, bool value) {
     addOrUpdateData('settings', 'useSystemColor', value);
     useSystemColor.value = value;
-    Musify.updateAppState(
+    Musium.updateAppState(
       context,
       newAccentColor: primaryColorSetting,
       useSystemColor: value,
@@ -473,7 +473,7 @@ class SettingsPage extends StatelessWidget {
   void _togglePureBlack(BuildContext context, bool value) {
     addOrUpdateData('settings', 'usePureBlackColor', value);
     usePureBlackColor.value = value;
-    Musify.updateAppState(context);
+    Musium.updateAppState(context);
     showToast(context, context.l10n!.settingChangedMsg);
   }
 
@@ -483,7 +483,7 @@ class SettingsPage extends StatelessWidget {
     transitionsBuilder = value
         ? const PredictiveBackPageTransitionsBuilder()
         : const CupertinoPageTransitionsBuilder();
-    Musify.updateAppState(context);
+    Musium.updateAppState(context);
     showToast(context, context.l10n!.settingChangedMsg);
   }
 
