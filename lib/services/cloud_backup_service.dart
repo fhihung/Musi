@@ -276,6 +276,77 @@ class CloudBackupService {
     }
   }
 
+  /// Check if user has favoriteGenres in remote backup
+  static Future<bool> hasFavoriteGenresInCloud() async {
+    try {
+      if (!AuthService.isAuthenticated || AuthService.userId == null) {
+        return false;
+      }
+
+      final response = await _client.get(
+        '/collections/$_backupCollection/records',
+        requiresAuth: true,
+        queryParams: {
+          'filter': 'user_id = "${AuthService.userId}"',
+          'sort': '-created',
+          'perPage': '1',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final items = data['items'] as List<dynamic>? ?? [];
+
+        if (items.isEmpty) {
+          return false;
+        }
+
+        final latestBackup = items.first as Map<String, dynamic>;
+        final backupData = latestBackup['backup_data'] as Map<String, dynamic>;
+        final userData = backupData['user'] as Map<String, dynamic>? ?? {};
+        final favoriteGenres = userData['favoriteGenres'] as List<dynamic>?;
+
+        // Return true if favoriteGenres exists and is not empty
+        return favoriteGenres != null && favoriteGenres.isNotEmpty;
+      }
+
+      return false;
+    } catch (e) {
+      logger.log('Error checking favoriteGenres in cloud', e, null);
+      return false;
+    }
+  }
+
+  /// Check if user has any backup on remote
+  static Future<bool> hasBackupInCloud() async {
+    try {
+      if (!AuthService.isAuthenticated || AuthService.userId == null) {
+        return false;
+      }
+
+      final response = await _client.get(
+        '/collections/$_backupCollection/records',
+        requiresAuth: true,
+        queryParams: {
+          'filter': 'user_id = "${AuthService.userId}"',
+          'sort': '-created',
+          'perPage': '1',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final items = data['items'] as List<dynamic>? ?? [];
+        return items.isNotEmpty;
+      }
+
+      return false;
+    } catch (e) {
+      logger.log('Error checking backup in cloud', e, null);
+      return false;
+    }
+  }
+
   /// Collect backup data from Hive
   static Future<Map<String, dynamic>> _collectBackupData() async {
     final userBox = await Hive.openBox('user');

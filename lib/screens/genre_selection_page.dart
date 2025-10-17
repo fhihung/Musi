@@ -106,7 +106,11 @@ class _GenreSelectionPageState extends State<GenreSelectionPage> {
       await userBox.put('favoriteGenres', _selectedGenres.toList());
 
       // Backup to cloud
-      await CloudBackupService.backupToCloud();
+      final backupResult = await CloudBackupService.backupToCloud();
+      if (!backupResult.success) {
+        // Log error but don't block the user
+        print('Failed to backup to cloud: ${backupResult.error}');
+      }
 
       if (mounted) {
         Navigator.of(context).pop(true);

@@ -26,6 +26,8 @@ import 'package:hive/hive.dart';
 import 'package:musify/controllers/auth_controller.dart';
 import 'package:musify/screens/genre_selection_page.dart';
 import 'package:musify/screens/register_page.dart';
+import 'package:musify/services/cloud_backup_service.dart';
+import 'package:musify/widgets/backup_update_dialog.dart';
 import 'package:musify/widgets/spinner.dart';
 
 class LoginPage extends StatefulWidget {
@@ -84,25 +86,57 @@ class _LoginPageState extends State<LoginPage> {
         // Close login bottom sheet
         Navigator.of(context).pop();
 
-        // Check if user has selected genres
-        final userBox = await Hive.openBox('user');
-        final favoriteGenres = userBox.get('favoriteGenres') as List<dynamic>?;
+        // Check if user has backup on remote
+        final hasBackupInCloud = await CloudBackupService.hasBackupInCloud();
 
-        if (favoriteGenres == null || favoriteGenres.isEmpty) {
-          // Show genre selection if not selected yet
+        if (hasBackupInCloud) {
+          // Show update dialog
           if (mounted) {
-            await Navigator.push<void>(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const GenreSelectionPage(),
-              ),
+            final shouldUpdate = await showDialog<bool>(
+              context: context,
+              builder: (context) => const BackupUpdateDialog(),
             );
+
+            // If user chose to update, the dialog will handle the restore
+            // If user chose to skip, continue with genre selection check
+            if (shouldUpdate == true) {
+              // User successfully restored from cloud, check genres
+              await _checkAndShowGenreSelection();
+            } else {
+              // User skipped update, check genres normally
+              await _checkAndShowGenreSelection();
+            }
           }
+        } else {
+          // No backup on cloud, check genres normally
+          await _checkAndShowGenreSelection();
         }
       } else {
         setState(() {
           _errorMessage = result.error ?? 'Đăng nhập thất bại';
         });
+      }
+    }
+  }
+
+  Future<void> _checkAndShowGenreSelection() async {
+    // Check if user has selected genres in remote backup
+    final hasGenresInCloud =
+        await CloudBackupService.hasFavoriteGenresInCloud();
+
+    if (!hasGenresInCloud) {
+      // Check local backup as fallback
+      final userBox = await Hive.openBox('user');
+      final favoriteGenres = userBox.get('favoriteGenres') as List<dynamic>?;
+
+      if (favoriteGenres == null || favoriteGenres.isEmpty) {
+        // Show genre selection if not selected yet
+        if (mounted) {
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(builder: (context) => const GenreSelectionPage()),
+          );
+        }
       }
     }
   }

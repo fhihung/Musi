@@ -26,7 +26,6 @@ import 'package:audio_service/audio_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
@@ -43,7 +42,6 @@ import 'package:musify/services/logger_service.dart';
 import 'package:musify/services/playlist_sharing.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
-import 'package:musify/services/update_manager.dart';
 import 'package:musify/style/app_themes.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:path_provider/path_provider.dart';
@@ -54,7 +52,6 @@ final logger = Logger();
 final appLinks = AppLinks();
 
 bool isFdroidBuild = false;
-bool isUpdateChecked = false;
 
 const appLanguages = <String, String>{'English': 'en', 'Japanese': 'ja'};
 
@@ -145,24 +142,6 @@ class _MusiumState extends State<Musium> {
     } catch (e, stackTrace) {
       logger.log('License Registration Error', e, stackTrace);
     }
-
-    if (shouldWeCheckUpdates.value == true) {
-      if (!isFdroidBuild && !isUpdateChecked && kReleaseMode) {
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (!offlineMode.value) {
-            checkAppUpdates();
-          }
-          isUpdateChecked = true;
-        });
-      }
-    } else {
-      if (shouldWeCheckUpdates.value == null) {
-        // show dialog that asks user if they want to enable update checks
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          showUpdateCheckDialog(NavigationManager().context);
-        });
-      }
-    }
   }
 
   @override
@@ -171,40 +150,6 @@ class _MusiumState extends State<Musium> {
 
     Hive.close();
     super.dispose();
-  }
-
-  void showUpdateCheckDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(context.l10n!.checkForUpdates),
-          content: Text(context.l10n!.enableUpdateChecksDescription),
-          actions: [
-            TextButton(
-              onPressed: () {
-                shouldWeCheckUpdates.value = false;
-                addOrUpdateData('settings', 'shouldWeCheckUpdates', false);
-                Navigator.of(context).pop();
-              },
-              child: Text(context.l10n!.no),
-            ),
-            TextButton(
-              onPressed: () {
-                shouldWeCheckUpdates.value = true;
-                addOrUpdateData('settings', 'shouldWeCheckUpdates', true);
-                if (!isFdroidBuild && kReleaseMode && !offlineMode.value) {
-                  checkAppUpdates();
-                  isUpdateChecked = true;
-                }
-                Navigator.of(context).pop();
-              },
-              child: Text(context.l10n!.yes),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _onOfflineModeChanged() {

@@ -28,9 +28,7 @@ import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/widgets/spinner.dart';
 
 class CloudBackupScreen extends StatefulWidget {
-  const CloudBackupScreen({super.key, this.autoBackup = false});
-
-  final bool autoBackup;
+  const CloudBackupScreen({super.key});
 
   @override
   State<CloudBackupScreen> createState() => _CloudBackupScreenState();
@@ -44,13 +42,6 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
   void initState() {
     super.initState();
     _loadBackupHistory();
-
-    // Auto backup if requested
-    if (widget.autoBackup) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _performBackup();
-      });
-    }
   }
 
   Future<void> _loadBackupHistory() async {
@@ -287,7 +278,7 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Lịch sử sao lưu',
+                        'Bản sao lưu',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       if (_backupHistory.isNotEmpty)
@@ -297,7 +288,7 @@ class _CloudBackupScreenState extends State<CloudBackupScreen> {
                             FluentIcons.delete_24_regular,
                             size: 16,
                           ),
-                          label: const Text('Xóa tất cả'),
+                          label: const Text('Xóa bản sao lưu'),
                           style: TextButton.styleFrom(
                             foregroundColor: Theme.of(
                               context,

@@ -68,12 +68,11 @@ class _HomePageState extends State<HomePage> {
             return IconButton(
               onPressed: () {
                 if (authController.isAuthenticated.value) {
-                  // If logged in, go to cloud backup screen and auto backup
+                  // If logged in, go to cloud backup screen
                   Navigator.push<void>(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          const CloudBackupScreen(autoBackup: true),
+                      builder: (context) => const CloudBackupScreen(),
                     ),
                   );
                 } else {
