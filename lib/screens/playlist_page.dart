@@ -175,19 +175,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
             const SizedBox(width: 10),
             _buildDownloadButton(),
             const SizedBox(width: 10),
-            if (_playlist['source'] == 'user-created')
-              IconButton(
-                icon: const Icon(FluentIcons.share_24_regular),
-                onPressed: () async {
-                  final encodedPlaylist = PlaylistSharingService.encodePlaylist(
-                    _playlist,
-                  );
-
-                  final url = 'musify://playlist/custom/$encodedPlaylist';
-                  await Clipboard.setData(ClipboardData(text: url));
-                },
-              ),
-            const SizedBox(width: 10),
           ],
           if (_playlist != null && _playlist['source'] == 'user-created') ...[
             _buildEditButton(),

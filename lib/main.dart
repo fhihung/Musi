@@ -29,8 +29,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:musify/API/musify.dart';
+import 'package:musify/controllers/auth_controller.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/localization/app_localizations.dart';
 import 'package:musify/services/audio_service.dart';
@@ -54,30 +56,7 @@ final appLinks = AppLinks();
 bool isFdroidBuild = false;
 bool isUpdateChecked = false;
 
-const appLanguages = <String, String>{
-  'English': 'en',
-  'Arabic': 'ar',
-  'Chinese (Simplified)': 'zh',
-  'Chinese (Traditional)': 'zh-Hant',
-  'Estonian': 'et',
-  'French': 'fr',
-  'German': 'de',
-  'Greek': 'el',
-  'Hindi': 'hi',
-  'Hebrew': 'he',
-  'Hungarian': 'hu',
-  'Indonesian': 'id',
-  'Italian': 'it',
-  'Japanese': 'ja',
-  'Korean': 'ko',
-  'Russian': 'ru',
-  'Polish': 'pl',
-  'Portuguese': 'pt',
-  'Spanish': 'es',
-  'Swedish': 'sv',
-  'Turkish': 'tr',
-  'Ukrainian': 'uk',
-};
+const appLanguages = <String, String>{'English': 'en', 'Japanese': 'ja'};
 
 final List<Locale> appSupportedLocales = appLanguages.values.map((
   languageCode,
@@ -311,6 +290,9 @@ Future<void> initialisation() async {
 
     // Init auth service
     await AuthService.init();
+
+    // Init auth controller with GetX
+    Get.put(AuthController());
 
     try {
       // Listen to incoming links while app is running

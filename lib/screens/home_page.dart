@@ -21,14 +21,15 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:musify/API/musify.dart';
+import 'package:musify/controllers/auth_controller.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/screens/cloud_backup_screen.dart';
 import 'package:musify/screens/login_page.dart';
 import 'package:musify/screens/playlist_page.dart';
-import 'package:musify/services/auth_service.dart';
 import 'package:musify/services/gemini_ai_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/common_variables.dart';
@@ -62,33 +63,36 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Musify.'),
         actions: [
-          IconButton(
-            onPressed: () {
-              if (AuthService.isAuthenticated) {
-                // If logged in, go to cloud backup screen and auto backup
-                Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const CloudBackupScreen(autoBackup: true),
-                  ),
-                );
-              } else {
-                // If not logged in, show login sheet
-                showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => const LoginPage(),
-                );
-              }
-            },
-            icon: Icon(
-              AuthService.isAuthenticated
-                  ? FluentIcons.cloud_sync_24_filled
-                  : FluentIcons.person_24_regular,
-            ),
-          ),
+          Obx(() {
+            final authController = Get.find<AuthController>();
+            return IconButton(
+              onPressed: () {
+                if (authController.isAuthenticated.value) {
+                  // If logged in, go to cloud backup screen and auto backup
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const CloudBackupScreen(autoBackup: true),
+                    ),
+                  );
+                } else {
+                  // If not logged in, show login sheet
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const LoginPage(),
+                  );
+                }
+              },
+              icon: Icon(
+                authController.isAuthenticated.value
+                    ? FluentIcons.cloud_sync_24_filled
+                    : FluentIcons.person_24_regular,
+              ),
+            );
+          }),
         ],
       ),
       body: SingleChildScrollView(

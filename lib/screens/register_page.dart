@@ -21,8 +21,9 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:musify/controllers/auth_controller.dart';
 import 'package:musify/screens/login_page.dart';
-import 'package:musify/services/auth_service.dart';
 import 'package:musify/widgets/spinner.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -61,7 +62,8 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     final email = _emailController.text.trim();
-    final result = await AuthService.signUp(
+    final authController = Get.find<AuthController>();
+    final result = await authController.signUp(
       name: _nameController.text.trim(),
       email: email,
       password: _passwordController.text,

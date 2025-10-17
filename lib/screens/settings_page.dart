@@ -21,11 +21,12 @@
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:musify/API/musify.dart';
+import 'package:musify/controllers/auth_controller.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/screens/search_page.dart';
-import 'package:musify/services/auth_service.dart';
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
@@ -42,14 +43,8 @@ import 'package:musify/widgets/confirmation_dialog.dart';
 import 'package:musify/widgets/custom_bar.dart';
 import 'package:musify/widgets/section_header.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
-
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -68,13 +63,13 @@ class _SettingsPageState extends State<SettingsPage> {
               activatedColor,
               inactivatedColor,
             ),
-            if (!offlineMode.value)
-              _buildOnlineFeaturesSection(
-                context,
-                activatedColor,
-                inactivatedColor,
-                primaryColor,
-              ),
+            // if (!offlineMode.value)
+            //   _buildOnlineFeaturesSection(
+            //     context,
+            //     activatedColor,
+            //     inactivatedColor,
+            //     primaryColor,
+            //   ),
             _buildOthersSection(context),
             const SizedBox(height: 20),
           ],
@@ -92,12 +87,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Column(
       children: [
         SectionHeader(title: context.l10n!.preferences),
-        CustomBar(
-          context.l10n!.accentColor,
-          FluentIcons.color_24_filled,
-          borderRadius: commonCustomBarRadiusFirst,
-          onTap: () => _showAccentColorPicker(context),
-        ),
+
         CustomBar(
           context.l10n!.themeMode,
           FluentIcons.weather_sunny_28_filled,
@@ -110,62 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
           onTap: () =>
               _showLanguagePicker(context, activatedColor, inactivatedColor),
         ),
-        CustomBar(
-          context.l10n!.audioQuality,
-          Icons.music_note,
-          onTap: () => _showAudioQualityPicker(
-            context,
-            activatedColor,
-            inactivatedColor,
-          ),
-        ),
-        ValueListenableBuilder<bool>(
-          valueListenable: useProxy,
-          builder: (_, value, __) {
-            return CustomBar(
-              context.l10n!.useProxy,
-              FluentIcons.shield_24_filled,
-              trailing: Switch(
-                value: value,
-                onChanged: (value) {
-                  useProxy.value = value;
-                  addOrUpdateData('settings', 'useProxy', value);
-                  showToast(context, context.l10n!.settingChangedMsg);
-                },
-              ),
-            );
-          },
-        ),
-        CustomBar(
-          context.l10n!.dynamicColor,
-          FluentIcons.toggle_left_24_filled,
-          trailing: Switch(
-            value: useSystemColor.value,
-            onChanged: (value) => _toggleSystemColor(context, value),
-          ),
-        ),
-        if (themeMode == ThemeMode.dark)
-          CustomBar(
-            context.l10n!.pureBlackTheme,
-            FluentIcons.color_background_24_filled,
-            trailing: Switch(
-              value: usePureBlackColor.value,
-              onChanged: (value) => _togglePureBlack(context, value),
-            ),
-          ),
-        ValueListenableBuilder<bool>(
-          valueListenable: predictiveBack,
-          builder: (_, value, __) {
-            return CustomBar(
-              context.l10n!.predictiveBack,
-              FluentIcons.position_backward_24_filled,
-              trailing: Switch(
-                value: value,
-                onChanged: (value) => _togglePredictiveBack(context, value),
-              ),
-            );
-          },
-        ),
+
         ValueListenableBuilder<bool>(
           valueListenable: offlineMode,
           builder: (_, value, __) {
@@ -192,22 +127,6 @@ class _SettingsPageState extends State<SettingsPage> {
             );
           },
         ),
-        if (!isFdroidBuild)
-          ValueListenableBuilder<bool?>(
-            valueListenable: shouldWeCheckUpdates,
-            builder: (_, value, __) {
-              return CustomBar(
-                context.l10n!.automaticUpdateChecks,
-                FluentIcons.arrow_sync_24_filled,
-                borderRadius: commonCustomBarRadiusLast,
-                trailing: Switch(
-                  value: value ?? false,
-                  onChanged: (value) =>
-                      _toggleAutomaticUpdateChecks(context, value),
-                ),
-              );
-            },
-          ),
       ],
     );
   }
@@ -266,7 +185,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
 
         _buildToolsSection(context),
-        _buildSponsorSection(context, primaryColor),
       ],
     );
   }
@@ -321,141 +239,27 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSponsorSection(BuildContext context, Color primaryColor) {
-    final gradientEnd = Color.lerp(primaryColor, Colors.pink, 0.3)!;
-    final shadowColor = primaryColor.withValues(alpha: 0.3);
-    final iconBgColor = Colors.white.withValues(alpha: 0.2);
-    final arrowBgColor = Colors.white.withValues(alpha: 0.15);
-    final arrowColor = Colors.white.withValues(alpha: 0.9);
-
-    return Column(
-      children: [
-        SectionHeader(title: context.l10n!.becomeSponsor),
-        Padding(
-          padding: commonBarPadding,
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 3),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    primaryColor,
-                    primaryColor.withValues(alpha: 0.8),
-                    gradientEnd,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: shadowColor,
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(15),
-                  onTap: () =>
-                      launchURL(Uri.parse('https://ko-fi.com/gokadzev')),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
-                    child: SizedBox(
-                      height: 45, // Match CustomBar's minTileHeight
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: iconBgColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              FluentIcons.heart_24_filled,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              context.l10n!.sponsorProject,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600, // Match CustomBar
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: arrowBgColor,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              FluentIcons.arrow_right_24_filled,
-                              color: arrowColor,
-                              size: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildOthersSection(BuildContext context) {
     return Column(
       children: [
         SectionHeader(title: context.l10n!.others),
-        if (AuthService.isAuthenticated) ...[
-          CustomBar(
-            'Đăng xuất',
-            FluentIcons.sign_out_24_filled,
-            borderRadius: commonCustomBarRadiusFirst,
-            onTap: () => _handleSignOut(context),
-          ),
-          CustomBar(
-            context.l10n!.licenses,
-            FluentIcons.document_24_filled,
-            onTap: () => NavigationManager.router.go('/settings/license'),
-          ),
-        ] else
-          CustomBar(
-            context.l10n!.licenses,
-            FluentIcons.document_24_filled,
-            borderRadius: commonCustomBarRadiusFirst,
-            onTap: () => NavigationManager.router.go('/settings/license'),
-          ),
-        CustomBar(
-          '${context.l10n!.copyLogs} (${logger.getLogCount()})',
-          FluentIcons.error_circle_24_filled,
-          onTap: () async => showToast(context, await logger.copyLogs(context)),
-        ),
-        CustomBar(
-          context.l10n!.about,
-          FluentIcons.book_information_24_filled,
-          borderRadius: commonCustomBarRadiusLast,
-          onTap: () => NavigationManager.router.go('/settings/about'),
-        ),
+        Obx(() {
+          final authController = Get.find<AuthController>();
+          if (authController.isAuthenticated.value) {
+            return Column(
+              children: [
+                CustomBar(
+                  'Đăng xuất',
+                  FluentIcons.sign_out_24_filled,
+                  borderRadius: commonCustomBarRadiusFirst,
+                  onTap: () => _handleSignOut(context),
+                ),
+              ],
+            );
+          } else {
+            return const SizedBox.shrink();
+          }
+        }),
       ],
     );
   }
@@ -472,9 +276,9 @@ class _SettingsPageState extends State<SettingsPage> {
     );
 
     if (confirmed == true) {
-      await AuthService.signOut();
+      final authController = Get.find<AuthController>();
+      await authController.signOut();
       if (context.mounted) {
-        setState(() {});
         showToast(context, 'Đã đăng xuất');
       }
     }
